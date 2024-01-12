@@ -1,0 +1,18 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: tf-xp
+  annotations:
+    meta.crossplane.io/maintainer: tf-xp
+    meta.crossplane.io/source: tf-xp
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      tf-xp
+    meta.crossplane.io/readme: |
+      tf-xp
+spec:
+  dependsOn:
+    - provider: xpkg.upbound.io/upbound/provider-aws-ec2
+      version: "v0.47.1"
+    - function: xpkg.upbound.io/upbound/function-patch-and-transform
+      version: "v0.2.1"

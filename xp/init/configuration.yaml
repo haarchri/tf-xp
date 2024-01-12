@@ -1,0 +1,8 @@
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: tf-xp
+spec:
+  package: tf-xp.gz
+  packagePullPolicy: Never

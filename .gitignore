@@ -1,0 +1,5 @@
+tf/.terraform.lock.hcl
+tf/.terraform
+
+xp/tf-xp.xpkg
+xp/tf-xp.gz

@@ -1,0 +1,202 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xinstance.aws.example.corp
+spec:
+  writeConnectionSecretsToNamespace: upbound-system
+  compositeTypeRef:
+    apiVersion: aws.example.corp/v1alpha1
+    kind: XInstance
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: upbound-function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: test-env
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: VPC
+              spec:
+                forProvider:
+                  cidrBlock: 10.0.0.0/16
+                  enableDnsHostnames: true
+                  enableDnsSupport: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+
+          - name: subnet
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: Subnet
+              spec:
+                forProvider:
+                  cidrBlock: 10.0.0.0/24
+                  vpcIdSelector:
+                    matchControllerRef: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.availabilityZone
+                transforms:
+                  - type: string
+                    string:
+                      fmt: '%sa'
+                      type: Format
+
+          - name: ingress-all-test
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: SecurityGroup
+              spec:
+                forProvider:
+                  name: allow-all-sg
+                  vpcIdSelector:
+                    matchControllerRef: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+
+          - name: ingress-all-test-ingress
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: SecurityGroupIngressRule
+              spec:
+                forProvider:
+                  cidrIpv4: 0.0.0.0/0
+                  fromPort: 22
+                  toPort: 22
+                  ipProtocol: tcp
+                  securityGroupIdSelector:
+                    matchControllerRef: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+
+          - name: ingress-all-test-egress
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: SecurityGroupEgressRule
+              spec:
+                forProvider:
+                  cidrIpv4: 0.0.0.0/0
+                  fromPort: 0
+                  toPort: 0
+                  ipProtocol: "-1"
+                  securityGroupIdSelector:
+                    matchControllerRef: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+
+          - name: test-env-gw
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: InternetGateway
+              spec:
+                forProvider:
+                  vpcIdSelector:
+                    matchControllerRef: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+
+          - name: route-table-test-env
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: RouteTable
+              spec:
+                forProvider:
+                  vpcIdSelector:
+                    matchControllerRef: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+
+          - name: route-table-test-env-route
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: Route
+              spec:
+                forProvider:
+                  destinationCidrBlock: 0.0.0.0/0
+                  gatewayIdSelector:
+                    matchControllerRef: true
+                  routeTableIdSelector:
+                    matchControllerRef: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+
+          - name: subnet-association
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: RouteTableAssociation
+              spec:
+                forProvider:
+                  routeTableIdSelector:
+                    matchControllerRef: true
+                  subnetIdSelector:
+                    matchControllerRef: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+
+
+          - name: ec2-instance
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: Instance
+              metadata:
+                labels:
+                  testing.upbound.io/example-name: test
+                name: test
+              spec:
+                forProvider:
+                  instanceType: t3.micro
+                  vpcSecurityGroupIdSelector:
+                    matchControllerRef: true
+                  subnetIdSelector:
+                    matchControllerRef: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.amiId
+                toFieldPath: spec.forProvider.ami
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.keyPairName
+                toFieldPath: spec.forProvider.keyName
+
+          - name: ip-test-env
+            base:
+              apiVersion: ec2.aws.upbound.io/v1beta1
+              kind: EIP
+              metadata:
+                labels:
+                  testing.upbound.io/example-name: lb
+                name: lb
+              spec:
+                forProvider:
+                  instanceSelector:
+                    matchControllerRef: true
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
